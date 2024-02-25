@@ -9,6 +9,19 @@ use clap_verbosity_flag::Verbosity;
 use log::info;
 use process_command::process_command;
 
+/**
+ * @todo
+ * - Think of cool name and rename package
+ * - Restructure for testing and add some tests
+ * - Add exact match flag (optional, default not)
+ * - Allow output to file (optional, default not)
+ * - Show line numbers (optional, default yes)
+ * - Show amount of lines found (optional, default yes)
+ * - Make found part bold (optional, default yes)
+ * - Allow piped output?
+ * - Allow searching through directory?
+ */
+
 // Struct for arguments
 #[derive(Parser)]
 struct Args {
