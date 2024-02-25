@@ -11,7 +11,7 @@ use process_command::process_command;
 
 /**
  * @todo
- * - Think of cool name and rename package
+ * - Think of cool name and rename package (gigagrep?)
  * - Restructure for testing and add some tests
  * - Add exact match flag (optional, default not)
  * - Allow output to file (optional, default not)
