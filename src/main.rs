@@ -1,4 +1,4 @@
-use std::{fs::File, io::{BufRead, BufReader, Lines}, path::PathBuf};
+use std::{fs::File, io::{self, BufRead, BufReader, Lines, Write}, path::PathBuf};
 use clap::{error::ErrorKind, CommandFactory, Parser};
 use anyhow::{Context, Result};
 
@@ -29,15 +29,17 @@ fn main() -> Result<()> {
 }
 
 fn process_command(args: Args) -> Result<(), anyhow::Error> {
-    let filepath = &PathBuf::from(&args.path);
+    let filepath: &PathBuf = &PathBuf::from(&args.path);
 
     let lines = read_file(filepath)
         .with_context(|| format!("could not read file '{}'", &args.path))?;
+
+    let stdout: io::Stdout = io::stdout();
+    let mut handle: io::BufWriter<io::Stdout> = io::BufWriter::new(stdout);
     
-    // @todo: calling printLn very often in a loop can be slow, use a BufWriter
     for line in lines.flatten() {
         if line.contains(&args.pattern) {
-            println!("{}", line);
+            writeln!(handle, "{}", line)?;
         }
     }
 
