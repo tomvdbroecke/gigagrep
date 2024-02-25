@@ -6,3 +6,6 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.80"
 clap = { version = "4.5.1", features = ["derive"] }
+clap-verbosity-flag = "2.2.0"
+log = "0.4.20"
+simple_logger = "4.3.3"
