@@ -3,8 +3,8 @@ mod process_command;
 mod read_file;
 
 // Uses
-use clap::{error::ErrorKind, CommandFactory, Parser};
 use anyhow::Result;
+use clap::{error::ErrorKind, CommandFactory, Parser};
 use clap_verbosity_flag::Verbosity;
 use log::info;
 use process_command::process_command;
@@ -14,6 +14,7 @@ use process_command::process_command;
  * - Think of cool name and rename package (gigagrep?)
  * - Restructure for testing and add some tests
  * - Add exact match flag (optional, default not)
+ * - Add ignore casing flag (optional, default no)
  * - Allow output to file (optional, default not)
  * - Show line numbers (optional, default yes)
  * - Show amount of lines found (optional, default yes)
@@ -46,10 +47,10 @@ fn main() -> Result<()> {
     if let Err(error) = process_command(args) {
         let mut cmd = Args::command();
         if let Some(source) = error.source() {
-            cmd.error(ErrorKind::Io, format!("{}\n\ncause: {}", &error, source)).exit()
-        } else {
-            cmd.error(ErrorKind::Io, format!("{}", &error)).exit()
+            cmd.error(ErrorKind::Io, format!("{}\n\ncause: {}", &error, source))
+                .exit()
         }
+        cmd.error(ErrorKind::Io, format!("{}", &error)).exit()
     }
 
     // Return OK

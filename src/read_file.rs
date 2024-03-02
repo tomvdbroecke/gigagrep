@@ -1,6 +1,10 @@
 // Uses
-use std::{fs::File, io::{BufRead, BufReader, Lines}, path::PathBuf};
 use log::debug;
+use std::{
+    fs::File,
+    io::{BufRead, BufReader, Lines},
+    path::PathBuf,
+};
 
 // Read file function
 pub(crate) fn read_file(filepath: &PathBuf) -> Result<Lines<BufReader<File>>, std::io::Error> {
