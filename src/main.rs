@@ -1,6 +1,6 @@
 // Modules
 mod process_command;
-mod read_file;
+mod utils;
 
 // Uses
 use anyhow::Result;
@@ -13,7 +13,9 @@ use process_command::process_command;
 // - Allow output to file (optional, default = no)
 // - Show summary of amount of lines found (optional, default = no)
 // - Allow piped output
-// - Allow searching through directory
+// - Do we also show filename when only searching a file?
+// - Add flag for not showing filename
+// - Do we want an extra whitespace after filename?
 
 // Struct for arguments
 #[derive(Parser)]
@@ -43,8 +45,21 @@ struct Args {
         help = "Removes the pattern highlight"
     )]
     no_pattern_highlight: bool,
+    #[arg(
+        short,
+        long,
+        default_value_t = false,
+        help = "Recursively search directories"
+    )]
+    recursive: bool,
     #[command(flatten)]
     verbose: Verbosity,
+}
+
+// Mode
+enum Mode {
+    File,
+    Directory,
 }
 
 // Main function

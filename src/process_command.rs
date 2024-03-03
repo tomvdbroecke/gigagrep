@@ -1,29 +1,49 @@
 // Uses
-use crate::read_file::read_file;
-use crate::Args;
-use anyhow::Context;
+use crate::utils::{get_mode, line_to_check, read_file, search_string, write_line};
+use crate::{Args, Mode};
+use anyhow::{Context, Error};
 use colored::Colorize;
 use log::debug;
-use regex::Regex;
-use std::{
-    io::{self, BufWriter, Stdout, Write},
-    path::PathBuf,
-};
+use std::fs;
+use std::io::Write;
+use std::io::{BufWriter, Stdout};
+use std::{io, path::PathBuf};
 
 // Process command function
-pub(crate) fn process_command(args: &Args) -> Result<(), anyhow::Error> {
+pub(crate) fn process_command(args: &Args) -> Result<(), Error> {
     debug!("processing command");
 
-    // Get filepath from argument
-    let filepath: &PathBuf = &PathBuf::from(&args.path);
-
-    // Retrieve lines from file
-    let lines =
-        read_file(filepath).with_context(|| format!("could not read file '{}'", &args.path))?;
+    // Check if path is a file or directory
+    let mode = get_mode(&args.path)?;
 
     // Prepare stdout for writing to cli
     let stdout: io::Stdout = io::stdout();
     let mut handle: io::BufWriter<io::Stdout> = io::BufWriter::new(stdout);
+
+    // If mode is only one file, process it, otherwise, process the directory
+    match mode {
+        Mode::File => {
+            // Check if recursive flag is set
+            if args.recursive {
+                return Err(anyhow::anyhow!(
+                    "Recursive flag is set but path points to a file"
+                ));
+            }
+            process_file(args, &PathBuf::from(&args.path), &mut handle)
+        }
+        Mode::Directory => process_directory(args, &mut handle),
+    }
+}
+
+// Process file function
+fn process_file(
+    args: &Args,
+    filepath: &PathBuf,
+    handle: &mut BufWriter<Stdout>,
+) -> Result<(), Error> {
+    // Retrieve lines from file
+    let lines =
+        read_file(filepath).with_context(|| format!("could not read file '{}'", &args.path))?;
 
     // Setup the search string
     let search_string = search_string(&args.exact_match, &args.case_insensitive, &args.pattern);
@@ -34,7 +54,7 @@ pub(crate) fn process_command(args: &Args) -> Result<(), anyhow::Error> {
         let line_to_check = line_to_check(&args.case_insensitive, &line);
 
         if line_to_check.contains(&search_string) {
-            write_line(&mut handle, args, &line, &line_number)?;
+            write_line(handle, args, &line, &line_number)?;
         }
 
         line_number += 1;
@@ -44,63 +64,37 @@ pub(crate) fn process_command(args: &Args) -> Result<(), anyhow::Error> {
     Ok(())
 }
 
-// Line to check based on case sensitivity
-fn line_to_check(case_insensitive: &bool, line: &String) -> String {
-    if *case_insensitive {
-        line.to_lowercase()
-    } else {
-        line.to_string()
-    }
+// Process directory function
+fn process_directory(args: &Args, handle: &mut BufWriter<Stdout>) -> Result<(), Error> {
+    let path = PathBuf::from(&args.path);
+    process_directory_contents(args, &path, handle)
 }
 
-// Search string based on exact match and case sensitivity
-fn search_string(exact_match: &bool, case_insensitive: &bool, pattern: &str) -> String {
-    let str = if *exact_match {
-        format!(" {} ", &pattern)
-    } else {
-        pattern.to_string()
-    };
-
-    if *case_insensitive {
-        str.to_lowercase()
-    } else {
-        str
-    }
-}
-
-// Write line function
-fn write_line(
-    handle: &mut BufWriter<Stdout>,
+// Recursive directory processing function
+fn process_directory_contents(
     args: &Args,
-    line: &String,
-    line_number: &u64,
-) -> Result<(), anyhow::Error> {
-    debug!("line containing '{}' found", args.pattern);
+    path: &PathBuf,
+    handle: &mut BufWriter<Stdout>,
+) -> Result<(), Error> {
+    // Read the contents of the directory
+    let entries =
+        fs::read_dir(path).with_context(|| format!("Could not read directory '{:?}'", path))?;
 
-    // Highlight the found pattern in the line
-    let formatted_line = if !args.no_pattern_highlight {
-        let pattern = &args.pattern;
-        let regex = Regex::new(&format!("(?i){}", regex::escape(pattern))).unwrap(); // Case-insensitive regex
-        regex
-            .replace_all(line, |caps: &regex::Captures| {
-                format!("{}", caps.get(0).unwrap().as_str().yellow().bold())
-            })
-            .to_string()
-    } else {
-        line.to_string()
-    };
+    // Iterate over the directory entries
+    for entry in entries {
+        let entry =
+            entry.with_context(|| format!("Error reading directory entry in '{:?}'", path))?;
+        let entry_path = entry.path();
 
-    // If not in quiet mode, print the found line (with or without line numbers)
-    if args.verbose.log_level().is_some() {
-        if args.hide_line_numbers {
-            writeln!(handle, "{}", formatted_line)?;
+        if entry_path.is_dir() {
+            // If recursive flag is set, recursively process subdirectories
+            if args.recursive {
+                process_directory_contents(args, &entry_path, handle)?;
+            }
         } else {
-            writeln!(
-                handle,
-                "{}{}",
-                format!("{}:", line_number).bold().blue(),
-                formatted_line
-            )?;
+            // Process files using process_file function
+            writeln!(handle, "{}", &entry_path.to_string_lossy().red().bold())?;
+            process_file(args, &entry_path, handle)?;
         }
     }
 
