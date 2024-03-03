@@ -24,20 +24,37 @@ pub(crate) fn process_command(args: &Args) -> Result<(), anyhow::Error> {
     let mut handle: io::BufWriter<io::Stdout> = io::BufWriter::new(stdout);
 
     // Setup the search string
-    let mut search_string: String = args.pattern.clone();
-    if args.exact_match {
-        search_string = format!(" {} ", args.pattern);
-    }
+    let search_string = search_string(&args.exact_match, &args.pattern);
 
     // Loop through the lines, if the line contains the pattern, print it to the stdout buffer
     for line in lines.map_while(Result::ok) {
-        if line.contains(&search_string) {
+        let line_to_check = line_to_check(&args.case_insensitive, &line);
+
+        if line_to_check.contains(&search_string) {
             write_line(&mut handle, &args.pattern, &line)?;
         }
     }
 
     // Return OK
     Ok(())
+}
+
+// Line to check based on case sensitivity
+fn line_to_check(case_insensitive: &bool, line: &String) -> String {
+    if *case_insensitive {
+        line.to_lowercase()
+    } else {
+        line.to_string()
+    }
+}
+
+// Search string based on exact match
+fn search_string(exact_match: &bool, pattern: &str) -> String {
+    if *exact_match {
+        format!(" {} ", &pattern)
+    } else {
+        pattern.to_string()
+    }
 }
 
 // Write line function

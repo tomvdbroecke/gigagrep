@@ -10,7 +10,6 @@ use log::info;
 use process_command::process_command;
 
 // @todo
-// - Add ignore casing flag (optional, default = no)
 // - Allow output to file (optional, default = no)
 // - Show line numbers (optional, default = yes)
 // - Show amount of lines found (optional, default = yes)
@@ -30,6 +29,8 @@ struct Args {
         help = "Whether to match the pattern exactly"
     )]
     exact_match: bool,
+    #[arg(short, long, default_value_t = false, help = "Ignores capitalization")]
+    case_insensitive: bool,
     #[command(flatten)]
     verbose: Verbosity,
 }
