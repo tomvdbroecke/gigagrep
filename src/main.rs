@@ -11,6 +11,7 @@ use process_command::process_command;
 
 // @todo
 // - Allow output to file (optional, default = no)
+// - When -q flag is passed (verbose), dont print to stdout (but still print to file)
 // - Show line numbers (optional, default = yes)
 // - Show amount of lines found (optional, default = yes)
 // - Make found part bold (optional, defauls = yes)
