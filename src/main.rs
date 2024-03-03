@@ -11,9 +11,7 @@ use process_command::process_command;
 
 // @todo
 // - Allow output to file (optional, default = no)
-// - Show amount of lines found (optional, default = yes)
-// - Add loading bar
-// - Make found part bold (optional, defauls = yes)
+// - Show summary of amount of lines found (optional, default = no)
 // - Allow piped output
 // - Allow searching through directory
 
@@ -38,6 +36,13 @@ struct Args {
         help = "Hides line numbers"
     )]
     hide_line_numbers: bool,
+    #[arg(
+        short,
+        long,
+        default_value_t = false,
+        help = "Removes the pattern highlight"
+    )]
+    no_pattern_highlight: bool,
     #[command(flatten)]
     verbose: Verbosity,
 }

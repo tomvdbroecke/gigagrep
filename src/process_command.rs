@@ -70,11 +70,24 @@ fn write_line(
 ) -> Result<(), anyhow::Error> {
     debug!("line containing '{}' found", args.pattern);
 
+    // Highlight the found pattern in the line
+    let formatted_line = if !args.no_pattern_highlight {
+        line.replace(&args.pattern, &format!("{}", &args.pattern.yellow().bold()))
+    } else {
+        line.to_string()
+    };
+
+    // If not in quiet mode, print the found line (with or without line numbers)
     if args.verbose.log_level().is_some() {
         if args.hide_line_numbers {
-            writeln!(handle, "{}", line)?;
+            writeln!(handle, "{}", formatted_line)?;
         } else {
-            writeln!(handle, "{}{}", format!("{}:", line_number).blue(), line)?;
+            writeln!(
+                handle,
+                "{}{}",
+                format!("{}:", line_number).bold().blue(),
+                formatted_line
+            )?;
         }
     }
 
