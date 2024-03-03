@@ -138,6 +138,7 @@ dependencies = [
  "anyhow",
  "clap",
  "clap-verbosity-flag",
+ "colored",
  "log",
  "simple_logger",
 ]

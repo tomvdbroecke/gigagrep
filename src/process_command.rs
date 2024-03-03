@@ -2,6 +2,7 @@
 use crate::read_file::read_file;
 use crate::Args;
 use anyhow::Context;
+use colored::Colorize;
 use log::debug;
 use std::{
     io::{self, BufWriter, Stdout, Write},
@@ -27,12 +28,15 @@ pub(crate) fn process_command(args: &Args) -> Result<(), anyhow::Error> {
     let search_string = search_string(&args.exact_match, &args.pattern);
 
     // Loop through the lines, if the line contains the pattern, print it to the stdout buffer
+    let mut line_number: u64 = 1;
     for line in lines.map_while(Result::ok) {
         let line_to_check = line_to_check(&args.case_insensitive, &line);
 
         if line_to_check.contains(&search_string) {
-            write_line(&mut handle, &args.pattern, &line)?;
+            write_line(&mut handle, args, &line, &line_number)?;
         }
+
+        line_number += 1;
     }
 
     // Return OK
@@ -60,10 +64,15 @@ fn search_string(exact_match: &bool, pattern: &str) -> String {
 // Write line function
 fn write_line(
     handle: &mut BufWriter<Stdout>,
-    pattern: &str,
+    args: &Args,
     line: &String,
+    line_number: &u64,
 ) -> Result<(), anyhow::Error> {
-    debug!("line containing '{}' found", pattern);
-    writeln!(handle, "{}", line)?;
+    debug!("line containing '{}' found", args.pattern);
+    if args.hide_line_numbers {
+        writeln!(handle, "{}", line)?;
+    } else {
+        writeln!(handle, "{}{}", format!("{}:", line_number).blue(), line)?;
+    }
     Ok(())
 }

@@ -14,6 +14,7 @@ use process_command::process_command;
 // - When -q flag is passed (verbose), dont print to stdout (but still print to file)
 // - Show line numbers (optional, default = yes)
 // - Show amount of lines found (optional, default = yes)
+// - Add loading bar
 // - Make found part bold (optional, defauls = yes)
 // - Allow piped output
 // - Allow searching through directory
@@ -32,6 +33,13 @@ struct Args {
     exact_match: bool,
     #[arg(short, long, default_value_t = false, help = "Ignores capitalization")]
     case_insensitive: bool,
+    #[arg(
+        short = 'l',
+        long,
+        default_value_t = false,
+        help = "Hides line numbers"
+    )]
+    hide_line_numbers: bool,
     #[command(flatten)]
     verbose: Verbosity,
 }
