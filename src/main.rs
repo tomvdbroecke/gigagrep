@@ -13,8 +13,6 @@ use process_command::process_command;
 // - Allow output to file (optional, default = no)
 // - Show summary of amount of lines found (optional, default = no)
 // - Allow piped output
-// - Do we also show filename when only searching a file?
-// - Add flag for not showing filename
 // - Do we want an extra whitespace after filename?
 // - Add more logging
 // - Add no-details flag (optional, default = no) (this will hide things like line numbers,
@@ -55,6 +53,8 @@ struct Args {
         help = "Recursively search directories"
     )]
     recursive: bool,
+    #[arg(short = 'p', long, default_value_t = false, help = "Hides filepath")]
+    hide_filepath: bool,
     #[command(flatten)]
     verbose: Verbosity,
 }

@@ -29,6 +29,9 @@ pub(crate) fn process_command(args: &Args) -> Result<(), Error> {
                     "Recursive flag is set but path points to a file"
                 ));
             }
+            if !args.hide_filepath {
+                writeln!(handle, "{}", &args.path.red().bold())?;
+            }
             process_file(args, &PathBuf::from(&args.path), &mut handle)
         }
         Mode::Directory => process_directory(args, &mut handle),
@@ -93,7 +96,9 @@ fn process_directory_contents(
             }
         } else {
             // Process files using process_file function
-            writeln!(handle, "{}", &entry_path.to_string_lossy().red().bold())?;
+            if !args.hide_filepath {
+                writeln!(handle, "{}", &entry_path.to_string_lossy().red().bold())?;
+            }
             process_file(args, &entry_path, handle)?;
         }
     }
