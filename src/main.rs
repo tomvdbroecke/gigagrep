@@ -16,6 +16,9 @@ use process_command::process_command;
 // - Do we also show filename when only searching a file?
 // - Add flag for not showing filename
 // - Do we want an extra whitespace after filename?
+// - Add more logging
+// - Add no-details flag (optional, default = no) (this will hide things like line numbers,
+// filenames and highlighting)
 
 // Struct for arguments
 #[derive(Parser)]
