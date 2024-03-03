@@ -4,6 +4,7 @@ use crate::Args;
 use anyhow::Context;
 use colored::Colorize;
 use log::debug;
+use regex::Regex;
 use std::{
     io::{self, BufWriter, Stdout, Write},
     path::PathBuf,
@@ -25,7 +26,7 @@ pub(crate) fn process_command(args: &Args) -> Result<(), anyhow::Error> {
     let mut handle: io::BufWriter<io::Stdout> = io::BufWriter::new(stdout);
 
     // Setup the search string
-    let search_string = search_string(&args.exact_match, &args.pattern);
+    let search_string = search_string(&args.exact_match, &args.case_insensitive, &args.pattern);
 
     // Loop through the lines, if the line contains the pattern, print it to the stdout buffer
     let mut line_number: u64 = 1;
@@ -52,12 +53,18 @@ fn line_to_check(case_insensitive: &bool, line: &String) -> String {
     }
 }
 
-// Search string based on exact match
-fn search_string(exact_match: &bool, pattern: &str) -> String {
-    if *exact_match {
+// Search string based on exact match and case sensitivity
+fn search_string(exact_match: &bool, case_insensitive: &bool, pattern: &str) -> String {
+    let str = if *exact_match {
         format!(" {} ", &pattern)
     } else {
         pattern.to_string()
+    };
+
+    if *case_insensitive {
+        str.to_lowercase()
+    } else {
+        str
     }
 }
 
@@ -72,7 +79,13 @@ fn write_line(
 
     // Highlight the found pattern in the line
     let formatted_line = if !args.no_pattern_highlight {
-        line.replace(&args.pattern, &format!("{}", &args.pattern.yellow().bold()))
+        let pattern = &args.pattern;
+        let regex = Regex::new(&format!("(?i){}", regex::escape(pattern))).unwrap(); // Case-insensitive regex
+        regex
+            .replace_all(line, |caps: &regex::Captures| {
+                format!("{}", caps.get(0).unwrap().as_str().yellow().bold())
+            })
+            .to_string()
     } else {
         line.to_string()
     };
