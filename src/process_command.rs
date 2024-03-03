@@ -84,6 +84,7 @@ fn process_directory_contents(
         fs::read_dir(path).with_context(|| format!("Could not read directory '{:?}'", path))?;
 
     // Iterate over the directory entries
+    let mut count = 0;
     for entry in entries {
         let entry =
             entry.with_context(|| format!("Error reading directory entry in '{:?}'", path))?;
@@ -97,9 +98,13 @@ fn process_directory_contents(
         } else {
             // Process files using process_file function
             if !args.hide_filepath {
+                if count > 0 {
+                    writeln!(handle)?;
+                }
                 writeln!(handle, "{}", &entry_path.to_string_lossy().red().bold())?;
             }
             process_file(args, &entry_path, handle)?;
+            count += 1;
         }
     }
 

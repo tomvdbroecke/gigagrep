@@ -13,7 +13,6 @@ use process_command::process_command;
 // - Allow output to file (optional, default = no)
 // - Show summary of amount of lines found (optional, default = no)
 // - Allow piped output
-// - Do we want an extra whitespace after filename?
 // - Add more logging
 // - Add no-details flag (optional, default = no) (this will hide things like line numbers,
 // filenames and highlighting)
