@@ -69,10 +69,14 @@ fn write_line(
     line_number: &u64,
 ) -> Result<(), anyhow::Error> {
     debug!("line containing '{}' found", args.pattern);
-    if args.hide_line_numbers {
-        writeln!(handle, "{}", line)?;
-    } else {
-        writeln!(handle, "{}{}", format!("{}:", line_number).blue(), line)?;
+
+    if args.verbose.log_level().is_some() {
+        if args.hide_line_numbers {
+            writeln!(handle, "{}", line)?;
+        } else {
+            writeln!(handle, "{}{}", format!("{}:", line_number).blue(), line)?;
+        }
     }
+
     Ok(())
 }
