@@ -17,8 +17,8 @@ pub(crate) fn process_command(args: &Args) -> Result<(), Error> {
     let mode = get_mode(&args.path)?;
 
     // Prepare stdout for writing to cli
-    let stdout: io::Stdout = io::stdout();
-    let mut handle: io::BufWriter<io::Stdout> = io::BufWriter::new(stdout);
+    let stdout = io::stdout();
+    let mut handle = io::BufWriter::new(stdout);
 
     // If mode is only one file, process it, otherwise, process the directory
     match mode {
