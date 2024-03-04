@@ -12,10 +12,16 @@ use process_command::process_command;
 // @todo
 // - Allow output to file (optional, default = no)
 // - Show summary of amount of lines found (optional, default = no)
+// - Only display filename if anything is found in it
 // - Allow piped output
 // - Add more logging
 // - Add no-details flag (optional, default = no) (this will hide things like line numbers,
 // filenames and highlighting)
+// - Match with REGEX for speed?
+// - Look at rg and hg for feature inspo
+// - Different format on pipe-out
+// - Write out options and features
+// - Paralellization for speed?
 
 // Struct for arguments
 #[derive(Parser)]

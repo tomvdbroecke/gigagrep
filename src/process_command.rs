@@ -57,6 +57,7 @@ fn process_file(
         let line_to_check = line_to_check(&args.case_insensitive, &line);
 
         if line_to_check.contains(&search_string) {
+            // @todo: first time this happens, print filename
             write_line(handle, args, &line, &line_number)?;
         }
 
