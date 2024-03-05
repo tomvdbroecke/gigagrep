@@ -48,13 +48,8 @@ pub(crate) fn search_string(exact_match: &bool, case_insensitive: &bool, pattern
     }
 }
 
-// Write line function
-pub(crate) fn write_line(
-    handle: &mut BufWriter<Stdout>,
-    args: &Args,
-    line: &String,
-    line_number: &u64,
-) -> Result<(), Error> {
+// Format line function
+pub(crate) fn format_line(args: &Args, line: &String, line_number: &usize) -> Option<String> {
     debug!("line containing '{}' found", args.pattern);
 
     // Highlight the found pattern in the line
@@ -71,20 +66,15 @@ pub(crate) fn write_line(
     };
 
     // If not in quiet mode, print the found line (with or without line numbers)
-    if args.verbose.log_level().is_some() {
-        if args.hide_line_numbers {
-            writeln!(handle, "{}", formatted_line)?;
-        } else {
-            writeln!(
-                handle,
-                "{}{}",
-                format!("{}:", line_number).bold().blue(),
-                formatted_line
-            )?;
-        }
+    if args.hide_line_numbers {
+        Some(formatted_line)
+    } else {
+        Some(format!(
+            "{}:{}",
+            line_number.to_string().bold().blue(),
+            formatted_line
+        ))
     }
-
-    Ok(())
 }
 
 // Get mode (file or directory)
