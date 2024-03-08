@@ -14,11 +14,16 @@ use std::thread::JoinHandle;
 use std::{fs, thread};
 use std::{io, path::PathBuf};
 
+// Search result type
+enum SearchResultType {
+    Start(String),
+    Data(usize, Option<String>),
+    End(String),
+}
+
 // Struct for message parsing
 struct SearchResult {
-    order: usize,
-    content: Option<String>,
-    filepath: String,
+    result_type: SearchResultType,
 }
 
 // Process command function
@@ -87,12 +92,24 @@ fn process_file(
     let lines =
         read_file(filepath).with_context(|| format!("could not read file '{}'", &args.path))?;
 
+    // Prepare start and end messages
+    let fp = filepath.display().to_string();
+    let start_msg = SearchResult {
+        result_type: SearchResultType::Start(fp.clone()),
+    };
+    let end_msg = SearchResult {
+        result_type: SearchResultType::End(fp),
+    };
+
     // Setup the search string
     let search_string = search_string(&args.exact_match, &args.case_insensitive, &args.pattern);
 
     // Order logic
     let mut ord = order.lock().unwrap();
     let original_order = ord.clone();
+
+    // Send start message
+    tx.send(start_msg)?;
 
     // Loop over lines
     for (line_number, line) in lines.enumerate() {
@@ -103,13 +120,18 @@ fn process_file(
             if *ord == original_order {
                 *ord += 1;
             }
-            tx.send(SearchResult {
-                order: original_order,
-                content: format_line(args, &line, &line_number),
-                filepath: filepath.to_string_lossy().into_owned(),
-            })?;
+            let data_msg = SearchResult {
+                result_type: SearchResultType::Data(
+                    original_order,
+                    format_line(args, &line, &line_number),
+                ),
+            };
+            tx.send(data_msg)?;
         };
     }
+
+    // Send end message
+    tx.send(end_msg)?;
 
     // Return OK
     Ok(())
@@ -155,15 +177,13 @@ fn process_directory_contents(
 }
 
 // Consumer thread function
-// @bug: this doesnt work yet, its counting into the next order before all inputs have been printed
-// (I'm sure it's not received more results fast enough)
 fn start_consumer_thread(
     rx: Arc<Mutex<Receiver<SearchResult>>>,
     handle: Arc<Mutex<BufWriter<io::Stdout>>>,
 ) -> JoinHandle<()> {
     thread::spawn(move || {
-        let mut buffer: HashMap<usize, SearchResult> = HashMap::new();
-        let mut next_order = 0;
+        let mut buffer: HashMap<usize, Vec<Option<String>>> = HashMap::new();
+        let mut lines_found = 0;
 
         loop {
             // Attempt to receive a result
@@ -173,22 +193,36 @@ fn start_consumer_thread(
             };
 
             match result {
-                Some(result) => {
-                    // If the order of the result matches the next expected order, process it
-                    // directly
-                    if result.order == next_order {
-                        print_result(&result, &handle);
-                        next_order += 1;
-                    } else {
-                        // If the result arrives out of order, store it in the buffer
-                        buffer.insert(result.order, result);
+                Some(SearchResult {
+                    result_type: SearchResultType::Data(order, data),
+                }) => {
+                    buffer.entry(order).or_insert_with(Vec::new).push(data);
+                }
+                Some(SearchResult {
+                    result_type: SearchResultType::End(filepath),
+                }) => {
+                    let mut orders: Vec<usize> = buffer.keys().cloned().collect();
+                    orders.sort_unstable();
+
+                    for order in orders {
+                        if let Some(datas) = buffer.remove(&order) {
+                            if lines_found > 0 {
+                                writeln!(handle.lock().unwrap());
+                            }
+                            writeln!(handle.lock().unwrap(), "{}", filepath.red().bold());
+                            for data in datas {
+                                print_result(&data, &handle);
+                                lines_found += 1;
+                            }
+                        }
                     }
 
-                    // Process any buffered results that are now in order
-                    while let Some(result) = buffer.remove(&next_order) {
-                        print_result(&result, &handle);
-                        next_order += 1;
-                    }
+                    buffer.clear();
+                }
+                Some(SearchResult {
+                    result_type: SearchResultType::Start(_filepath),
+                }) => {
+                    buffer.clear();
                 }
                 None => break,
             }
@@ -197,8 +231,8 @@ fn start_consumer_thread(
 }
 
 // Helper to print result
-fn print_result(result: &SearchResult, handle: &Arc<Mutex<BufWriter<io::Stdout>>>) {
-    if let Some(content) = &result.content {
+fn print_result(result: &Option<String>, handle: &Arc<Mutex<BufWriter<io::Stdout>>>) {
+    if let Some(content) = result {
         let mut handle = handle.lock().unwrap();
         writeln!(handle, "{}", content).expect("Failed to write to buffer");
     }
