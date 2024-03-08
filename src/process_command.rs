@@ -1,13 +1,13 @@
 // Uses
 use crate::utils::{format_line, get_mode, line_to_check, read_file, search_string};
 use crate::{Args, Mode};
-use anyhow::{Context, Error};
+use anyhow::{anyhow, Context, Error};
 use colored::Colorize;
 use log::debug;
 use rayon::prelude::*;
 use std::collections::HashMap;
+use std::io::BufWriter;
 use std::io::Write;
-use std::io::{BufWriter, Stdout};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
@@ -65,7 +65,7 @@ pub(crate) fn process_command(args: &Args) -> Result<(), Error> {
             )
         }
         Mode::Directory => {
-            let mut order = Arc::new(Mutex::new(0));
+            let order = Arc::new(Mutex::new(0));
             process_directory(args, &tx, order)
         }
     }?;
@@ -74,7 +74,9 @@ pub(crate) fn process_command(args: &Args) -> Result<(), Error> {
     drop(tx);
 
     // Wait for consumer thread to finish
-    consumer.join();
+    consumer
+        .join()
+        .map_err(|e| anyhow!("Thread panicked: {:?}", e))?;
 
     // Return Ok()
     Ok(())
@@ -106,7 +108,7 @@ fn process_file(
 
     // Order logic
     let mut ord = order.lock().unwrap();
-    let original_order = ord.clone();
+    let original_order = *ord;
 
     // Send start message
     tx.send(start_msg)?;
@@ -196,7 +198,7 @@ fn start_consumer_thread(
                 Some(SearchResult {
                     result_type: SearchResultType::Data(order, data),
                 }) => {
-                    buffer.entry(order).or_insert_with(Vec::new).push(data);
+                    buffer.entry(order).or_insert(Vec::new()).push(data);
                 }
                 Some(SearchResult {
                     result_type: SearchResultType::End(filepath),
@@ -209,7 +211,7 @@ fn start_consumer_thread(
                             if lines_found > 0 {
                                 writeln!(handle.lock().unwrap());
                             }
-                            writeln!(handle.lock().unwrap(), "{}", filepath.red().bold());
+                            print_result(&Some(filepath.red().bold().to_string()), &handle);
                             for data in datas {
                                 print_result(&data, &handle);
                                 lines_found += 1;
