@@ -11,8 +11,6 @@ use process_command::process_command;
 
 // @todo
 // - Allow output to file (optional, default = no)
-// - Show summary of amount of lines found (optional, default = no)
-// - Only display filename if anything is found in it
 // - Allow piped output
 // - Add more logging
 // - Add no-details flag (optional, default = no) (this will hide things like line numbers,
@@ -22,7 +20,7 @@ use process_command::process_command;
 // - Write out options and features
 
 // Struct for arguments
-#[derive(Parser)]
+#[derive(Parser, Clone)]
 struct Args {
     pattern: String,
     path: String,
@@ -58,6 +56,13 @@ struct Args {
     recursive: bool,
     #[arg(short = 'p', long, default_value_t = false, help = "Hides filepath")]
     hide_filepath: bool,
+    #[arg(
+        short = 's',
+        long,
+        default_value_t = false,
+        help = "Hides summary message"
+    )]
+    no_summary_message: bool,
     #[command(flatten)]
     verbose: Verbosity,
 }
@@ -80,7 +85,7 @@ fn main() -> Result<()> {
     }
 
     // Process the command, if an error occurs, format it the same way as 'clap'
-    if let Err(error) = process_command(&args) {
+    if let Err(error) = process_command(args) {
         let mut cmd = Args::command();
         if let Some(source) = error.source() {
             cmd.error(ErrorKind::Io, format!("{}\n\ncause: {}", &error, source))

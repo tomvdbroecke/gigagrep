@@ -12,6 +12,7 @@ use std::io::{BufWriter, Stdout};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread::JoinHandle;
+use std::time::Instant;
 use std::{fs, thread};
 use std::{io, path::PathBuf};
 
@@ -28,8 +29,11 @@ struct SearchResult {
 }
 
 // Process command function
-pub(crate) fn process_command(args: &Args) -> Result<(), Error> {
+pub(crate) fn process_command(args: Args) -> Result<(), Error> {
     debug!("processing command");
+
+    // Keep track of time
+    let start_time = Instant::now();
 
     // Check if path is a file or directory
     let mode = get_mode(&args.path)?;
@@ -42,7 +46,12 @@ pub(crate) fn process_command(args: &Args) -> Result<(), Error> {
     let (tx, rx) = mpsc::channel::<SearchResult>();
 
     // Start consumer thread
-    let consumer = start_consumer_thread(Arc::new(Mutex::new(rx)), Arc::new(Mutex::new(handle)));
+    let consumer = start_consumer_thread(
+        Arc::new(Mutex::new(rx)),
+        Arc::new(Mutex::new(handle)),
+        start_time,
+        args.clone(),
+    );
 
     // Compile regex from search string
     let search_string = search_string(&args.exact_match, &args.case_insensitive, &args.pattern);
@@ -57,13 +66,8 @@ pub(crate) fn process_command(args: &Args) -> Result<(), Error> {
                     "Recursive flag is set but path points to a file"
                 ));
             }
-            if !args.hide_filepath {
-                let stdout = io::stdout();
-                let mut handle = io::BufWriter::new(stdout);
-                writeln!(handle, "{}", &args.path.red().bold())?;
-            }
             process_file(
-                args,
+                &args,
                 &PathBuf::from(&args.path),
                 &tx,
                 Arc::new(Mutex::new(0)),
@@ -72,7 +76,7 @@ pub(crate) fn process_command(args: &Args) -> Result<(), Error> {
         }
         Mode::Directory => {
             let order = Arc::new(Mutex::new(0));
-            process_directory(args, &tx, order, &regex)
+            process_directory(&args, &tx, order, &regex)
         }
     }?;
 
@@ -192,6 +196,8 @@ fn process_directory_contents(
 fn start_consumer_thread(
     rx: Arc<Mutex<Receiver<SearchResult>>>,
     handle: Arc<Mutex<BufWriter<io::Stdout>>>,
+    start_time: Instant,
+    args: Args,
 ) -> JoinHandle<()> {
     thread::spawn(move || {
         let mut buffer: HashMap<usize, Vec<Option<String>>> = HashMap::new();
@@ -242,6 +248,19 @@ fn start_consumer_thread(
                 }
                 None => break,
             }
+        }
+
+        // Print finish message
+        if !args.no_summary_message && lines_found > 0 {
+            writeln!(
+                handle,
+                "{} 🗿 found {} with the matching pattern {} in {}",
+                "GigaGrep".green().bold(),
+                format!("{} lines", lines_found).bold(),
+                &args.pattern.yellow().bold(),
+                format!("{:?}", start_time.elapsed()).bold()
+            )
+            .expect("Failed to write to buffer");
         }
     })
 }
