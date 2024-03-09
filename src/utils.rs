@@ -5,10 +5,9 @@ use colored::Colorize;
 use log::debug;
 use regex::Regex;
 use std::fs;
-use std::io::Write;
 use std::{
     fs::File,
-    io::{BufRead, BufReader, BufWriter, Lines, Stdout},
+    io::{BufRead, BufReader, Lines},
     path::PathBuf,
 };
 

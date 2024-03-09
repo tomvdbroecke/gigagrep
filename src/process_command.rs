@@ -6,10 +6,10 @@ use colored::Colorize;
 use log::debug;
 use rayon::prelude::*;
 use std::collections::HashMap;
-use std::io::BufWriter;
+use std::io::{BufWriter, Stdout};
 use std::io::Write;
 use std::sync::mpsc::{self, Receiver, Sender};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread::JoinHandle;
 use std::{fs, thread};
 use std::{io, path::PathBuf};
@@ -163,14 +163,16 @@ fn process_directory_contents(
     // Iterate over the directory entries
     entries.par_bridge().for_each_with(tx.clone(), |s, entry| {
         if let Ok(entry) = entry {
-            if entry.path().is_dir() {
+            if entry.path().is_dir() && args.recursive {
                 // Search (recursive)
-                if args.recursive {
-                    process_directory_contents(args, &entry.path(), s, order.clone());
+                if let Err(e) = process_directory_contents(args, &entry.path(), s, order.clone()) {
+                    eprintln!("{}", e);
                 }
             } else {
                 // Process the file
-                process_file(args, &entry.path(), tx, order.clone());
+                if let Err(e) = process_file(args, &entry.path(), tx, order.clone()) {
+                    eprintln!("{}", e);
+                }
             }
         }
     });
@@ -186,6 +188,8 @@ fn start_consumer_thread(
     thread::spawn(move || {
         let mut buffer: HashMap<usize, Vec<Option<String>>> = HashMap::new();
         let mut lines_found = 0;
+
+        let mut handle = handle.lock().unwrap();
 
         loop {
             // Attempt to receive a result
@@ -209,11 +213,13 @@ fn start_consumer_thread(
                     for order in orders {
                         if let Some(datas) = buffer.remove(&order) {
                             if lines_found > 0 {
-                                writeln!(handle.lock().unwrap());
+                                if let Err(e) = writeln!(handle) {
+                                    eprintln!("{}", e);
+                                }
                             }
-                            print_result(&Some(filepath.red().bold().to_string()), &handle);
+                            print_result(&Some(filepath.red().bold().to_string()), &mut handle);
                             for data in datas {
-                                print_result(&data, &handle);
+                                print_result(&data, &mut handle);
                                 lines_found += 1;
                             }
                         }
@@ -233,9 +239,8 @@ fn start_consumer_thread(
 }
 
 // Helper to print result
-fn print_result(result: &Option<String>, handle: &Arc<Mutex<BufWriter<io::Stdout>>>) {
+fn print_result(result: &Option<String>, handle: &mut MutexGuard<'_, BufWriter<Stdout>>) {
     if let Some(content) = result {
-        let mut handle = handle.lock().unwrap();
         writeln!(handle, "{}", content).expect("Failed to write to buffer");
     }
 }
