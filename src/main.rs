@@ -17,7 +17,6 @@ use process_command::process_command;
 // - Add more logging
 // - Add no-details flag (optional, default = no) (this will hide things like line numbers,
 // filenames and highlighting)
-// - Match with REGEX for speed?
 // - Look at rg and hg for feature inspo
 // - Different format on pipe-out (same as no-deails flag maybe)
 // - Write out options and features

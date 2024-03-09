@@ -5,9 +5,10 @@ use anyhow::{anyhow, Context, Error};
 use colored::Colorize;
 use log::debug;
 use rayon::prelude::*;
+use regex::Regex;
 use std::collections::HashMap;
-use std::io::{BufWriter, Stdout};
 use std::io::Write;
+use std::io::{BufWriter, Stdout};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread::JoinHandle;
@@ -43,6 +44,10 @@ pub(crate) fn process_command(args: &Args) -> Result<(), Error> {
     // Start consumer thread
     let consumer = start_consumer_thread(Arc::new(Mutex::new(rx)), Arc::new(Mutex::new(handle)));
 
+    // Compile regex from search string
+    let search_string = search_string(&args.exact_match, &args.case_insensitive, &args.pattern);
+    let regex = Regex::new(&search_string).with_context(|| "Could not compile regex")?;
+
     // If mode is only one file, process it, otherwise, process the directory
     match mode {
         Mode::File => {
@@ -62,11 +67,12 @@ pub(crate) fn process_command(args: &Args) -> Result<(), Error> {
                 &PathBuf::from(&args.path),
                 &tx,
                 Arc::new(Mutex::new(0)),
+                &regex,
             )
         }
         Mode::Directory => {
             let order = Arc::new(Mutex::new(0));
-            process_directory(args, &tx, order)
+            process_directory(args, &tx, order, &regex)
         }
     }?;
 
@@ -89,6 +95,7 @@ fn process_file(
     filepath: &PathBuf,
     tx: &Sender<SearchResult>,
     order: Arc<Mutex<usize>>,
+    regex: &Regex,
 ) -> Result<(), Error> {
     // Retrieve lines from file
     let lines =
@@ -103,9 +110,6 @@ fn process_file(
         result_type: SearchResultType::End(fp),
     };
 
-    // Setup the search string
-    let search_string = search_string(&args.exact_match, &args.case_insensitive, &args.pattern);
-
     // Order logic
     let mut ord = order.lock().unwrap();
     let original_order = *ord;
@@ -118,7 +122,7 @@ fn process_file(
         let line = line?;
         let line_to_check = line_to_check(&args.case_insensitive, &line);
 
-        if line_to_check.contains(&search_string) {
+        if regex.is_match(&line_to_check) {
             if *ord == original_order {
                 *ord += 1;
             }
@@ -144,9 +148,10 @@ fn process_directory(
     args: &Args,
     tx: &Sender<SearchResult>,
     order: Arc<Mutex<usize>>,
+    regex: &Regex,
 ) -> Result<(), Error> {
     let path = PathBuf::from(&args.path);
-    process_directory_contents(args, &path, tx, order)
+    process_directory_contents(args, &path, tx, order, regex)
 }
 
 // Recursive directory processing function
@@ -155,6 +160,7 @@ fn process_directory_contents(
     path: &PathBuf,
     tx: &Sender<SearchResult>,
     order: Arc<Mutex<usize>>,
+    regex: &Regex,
 ) -> Result<(), Error> {
     // Read the contents of the directory
     let entries =
@@ -165,12 +171,14 @@ fn process_directory_contents(
         if let Ok(entry) = entry {
             if entry.path().is_dir() && args.recursive {
                 // Search (recursive)
-                if let Err(e) = process_directory_contents(args, &entry.path(), s, order.clone()) {
+                if let Err(e) =
+                    process_directory_contents(args, &entry.path(), s, order.clone(), regex)
+                {
                     eprintln!("{}", e);
                 }
             } else {
                 // Process the file
-                if let Err(e) = process_file(args, &entry.path(), tx, order.clone()) {
+                if let Err(e) = process_file(args, &entry.path(), tx, order.clone(), regex) {
                     eprintln!("{}", e);
                 }
             }
