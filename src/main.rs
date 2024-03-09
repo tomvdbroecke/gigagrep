@@ -18,6 +18,7 @@ use process_command::process_command;
 // - Look at rg and hg for feature inspo
 // - Different format on pipe-out (same as no-deails flag maybe)
 // - Write out options and features
+// - Use ignore crate for ignoring certain directories and files
 
 // Struct for arguments
 #[derive(Parser, Clone)]
